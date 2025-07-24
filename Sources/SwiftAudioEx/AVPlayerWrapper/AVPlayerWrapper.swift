@@ -238,11 +238,10 @@ class AVPlayerWrapper: AVPlayerWrapperProtocol {
       }
       
       if let url = url {
-          let pendingAsset = AVURLAsset(url: url, options: urlOptions)
-          asset = pendingAsset
-          state = .loading
-          
           Task { @MainActor in
+              let pendingAsset = AVURLAsset(url: url, options: urlOptions)
+              asset = pendingAsset
+              state = .loading
               do {
                   // Load common metadata
                   let commonMetadata = try await pendingAsset.load(.commonMetadata)
