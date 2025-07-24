@@ -69,7 +69,9 @@ class AVPlayerWrapper: AVPlayerWrapperProtocol {
                 let currentState = self._state
                 if (currentState != newValue) {
                     self._state = newValue
-                    self.delegate?.AVWrapper(didChangeState: newValue)
+                     DispatchQueue.main.async {
+                        self.delegate?.AVWrapper(didChangeState: newValue)
+                     }
                 }
             }
         }
