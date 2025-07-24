@@ -92,7 +92,7 @@ class AVPlayerWrapper: AVPlayerWrapperProtocol {
             
             if oldValue != playWhenReady {
                 DispatchQueue.main.async {
-                    self.delegate?.AVWrapper(didChangePlayWhenReady: playWhenReady)
+                    self.delegate?.AVWrapper(didChangePlayWhenReady: self.playWhenReady)
                 }
             }
         }
