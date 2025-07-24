@@ -240,15 +240,19 @@ class AVPlayerWrapper: AVPlayerWrapperProtocol {
       }
       
       if let url = url {
-          Task { @MainActor in
+          Task { 
               let pendingAsset = AVURLAsset(url: url, options: urlOptions)
-              asset = pendingAsset
-              state = .loading
+              await MainActor.run { 
+                  asset = pendingAsset
+                  state = .loading
+              }
               do {
                   // Load common metadata
                   let commonMetadata = try await pendingAsset.load(.commonMetadata)
                   if !commonMetadata.isEmpty {
-                      delegate?.AVWrapper(didReceiveCommonMetadata: commonMetadata)
+                      await MainActor.run {
+                          delegate?.AVWrapper(didReceiveCommonMetadata: commonMetadata)
+                      }
                   }
                   
                   // Load chapter metadata
@@ -256,7 +260,9 @@ class AVPlayerWrapper: AVPlayerWrapperProtocol {
                   if chapterLocales.count > 0 {
                       for locale in chapterLocales {
                         let chapters = try await pendingAsset.loadChapterMetadataGroups(withTitleLocale: locale)
-                          delegate?.AVWrapper(didReceiveChapterMetadata: chapters)
+                          await MainActor.run {
+                              delegate?.AVWrapper(didReceiveChapterMetadata: chapters)
+                          }
                       }
                   } else {
                       // Fallback to timed metadata if no chapters
@@ -268,32 +274,40 @@ class AVPlayerWrapper: AVPlayerWrapperProtocol {
                           )
                           let metadataItems = try await pendingAsset.loadMetadata(for: format)
                           let group = AVTimedMetadataGroup(items: metadataItems, timeRange: timeRange)
-                          delegate?.AVWrapper(didReceiveTimedMetadata: [group])
+                          await MainActor.run {
+                              delegate?.AVWrapper(didReceiveTimedMetadata: [group])
+                          }
                       }
                   }
                   
                   // Check if asset is playable
                   let isPlayable = try await pendingAsset.load(.isPlayable)
                   guard isPlayable else {
-                      playbackFailed(error: AudioPlayerError.PlaybackError.itemWasUnplayable)
+                      await MainActor.run {
+                          playbackFailed(error: AudioPlayerError.PlaybackError.itemWasUnplayable)
+                      }
                       return
                   }
                   
-                  // Create player item
-                  let item = AVPlayerItem(asset: pendingAsset)
-                  self.item = item
-                  item.preferredForwardBufferDuration = bufferDuration
-                  avPlayer.replaceCurrentItem(with: item)
-                  startObservingAVPlayer(item: item)
-                  applyAVPlayerRate()
-                  
-                  // Seek to initial time if needed
-                  if let initialTime = timeToSeekToAfterLoading {
-                      timeToSeekToAfterLoading = nil
-                      seek(to: initialTime)
+                  await MainActor.run {
+                      // Create player item
+                      let item = AVPlayerItem(asset: pendingAsset)
+                      self.item = item
+                      item.preferredForwardBufferDuration = bufferDuration
+                      avPlayer.replaceCurrentItem(with: item)
+                      startObservingAVPlayer(item: item)
+                      applyAVPlayerRate()
+                      
+                      // Seek to initial time if needed
+                      if let initialTime = timeToSeekToAfterLoading {
+                          timeToSeekToAfterLoading = nil
+                          seek(to: initialTime)
+                      }
                   }
               } catch {
-                  playbackFailed(error: AudioPlayerError.PlaybackError.failedToLoadKeyValue)
+                  await MainActor.run {
+                      playbackFailed(error: AudioPlayerError.PlaybackError.failedToLoadKeyValue)
+                  }
               }
           }
       }
